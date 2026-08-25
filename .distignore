@@ -4,6 +4,7 @@
 node_modules
 tests
 PLAN.md
+DESIGN-settings.md
 *.map
 *.zip
 .distignore
