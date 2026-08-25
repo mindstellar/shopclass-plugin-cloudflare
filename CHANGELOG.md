@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.3
+
+### Fixed
+- The "Test connection" analytics probe used an invalid GraphQL field (`count`), so it wrongly reported analytics as missing. It now uses a valid field.
+
 ## 1.1.2
 
 ### New

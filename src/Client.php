@@ -213,7 +213,7 @@ class Client
         } else {
             $since = gmdate('Y-m-d\TH:i:s\Z', time() - 3600);
             $g = $this->graphql(
-                'query($z:String!,$s:Time!){viewer{zones(filter:{zoneTag:$z}){httpRequests1hGroups(limit:1,filter:{datetime_geq:$s}){count}}}}',
+                'query($z:String!,$s:Time!){viewer{zones(filter:{zoneTag:$z}){httpRequests1hGroups(limit:1,filter:{datetime_geq:$s}){sum{requests}}}}}',
                 array('z' => $this->zoneId, 's' => $since)
             );
             $out['analytics'] = array('ok' => (bool)$g['ok'], 'error' => $g['error']);
