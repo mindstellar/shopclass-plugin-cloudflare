@@ -3,7 +3,7 @@
 Plugin Name: Cloudflare
 Plugin URI: https://github.com/mindstellar/shopclass-plugin-cloudflare
 Description: Purge Cloudflare's cache when listings change, install the recommended cache rules, and view cache analytics — all from the admin.
-Version: 1.1.3
+Version: 1.1.4
 Author: Mindstellar Community
 Author URI: https://mindstellar.com
 Short Name: cloudflare
@@ -67,7 +67,7 @@ osc_add_hook('admin_menu_init', 'cf_admin_menu');
 function cf_admin_menu()
 {
     osc_add_admin_submenu_page(
-        'settings',
+        'plugins',
         __('Cloudflare', 'cloudflare'),
         osc_admin_render_plugin_url(osc_plugin_folder(CF_PLUGIN_FILE) . 'admin/settings.php'),
         'cloudflare_settings',

@@ -44,6 +44,9 @@ if (!function_exists('cf_icon')) {
             'chart'   => '<path d="M4 20V4"/><path d="M4 20h16"/><path d="M8.5 17v-4"/><path d="M13 17V9"/><path d="M17.5 17v-6"/>',
             'refresh' => '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/>',
             'trash'   => '<path d="M4 7h16M9 7V5h6v2m-7 0 .8 12a1 1 0 0 0 1 1h4.4a1 1 0 0 0 1-1L16 7"/>',
+            'info'     => '<circle cx="12" cy="12" r="9"/><path d="M12 11v5m0-8h.01"/>',
+            'chevron'  => '<path d="m6 9 6 6 6-6"/>',
+            'external' => '<path d="M14 4h6v6m1-7L10 14"/><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/>',
         );
         $d = $paths[$name] ?? '';
         return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $d . '</svg>';
@@ -99,6 +102,19 @@ $e       = 'osc_esc_html';
 .cf-settings .cf-empty svg { color: var(--bs-border-color); }
 .cf-settings .cf-savebar { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-top:1.1rem; }
 .cf-settings .cf-savebar .cf-spacer { flex:1 1 auto; }
+.cf-settings .cf-setup > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:.5rem; font-weight:640; padding:.85rem 1.05rem; }
+.cf-settings .cf-setup > summary::-webkit-details-marker { display:none; }
+.cf-settings .cf-setup > summary .cf-i { color: var(--bs-primary); display:inline-flex; }
+.cf-settings .cf-setup > summary .cf-setup-sub { color: var(--bs-secondary-color); font-weight:400; font-size:.85rem; margin-left:auto; display:flex; align-items:center; gap:.35rem; }
+.cf-settings .cf-setup > summary .cf-chev { display:inline-flex; transition: transform .15s ease; }
+.cf-settings .cf-setup[open] > summary .cf-chev { transform: rotate(180deg); }
+.cf-settings .cf-setup-body { padding:.25rem 1.15rem 1rem 1.15rem; }
+.cf-settings .cf-steps { margin:0; padding-left:1.3rem; }
+.cf-settings .cf-steps > li { margin-bottom:.55rem; }
+.cf-settings .cf-scopes { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.4rem; }
+.cf-settings .badge.text-bg-light { background-color: var(--bs-tertiary-bg) !important; color: var(--bs-secondary-color) !important; border-color: var(--bs-border-color); }
+.cf-settings .cf-setup a { font-weight:560; white-space:nowrap; }
+.cf-settings .cf-setup a svg { vertical-align:-3px; }
 </style>
 
 <div class="cf-settings">
@@ -119,6 +135,36 @@ $e       = 'osc_esc_html';
       </span>
     </div>
   </div>
+
+  <details class="card cf-setup mb-3"<?php echo $configured ? '' : ' open'; ?>>
+    <summary>
+      <span class="cf-i"><?php echo cf_icon('info'); ?></span>
+      <span><?php echo $e(__('Getting started', 'cloudflare')); ?></span>
+      <span class="cf-setup-sub">
+        <?php echo $e($configured ? __('setup & required permissions', 'cloudflare') : __('first-time setup', 'cloudflare')); ?>
+        <span class="cf-chev"><?php echo cf_icon('chevron'); ?></span>
+      </span>
+    </summary>
+    <div class="cf-setup-body">
+      <ol class="cf-steps">
+        <li>
+          <?php echo $e(__('Create a Cloudflare', 'cloudflare')); ?>
+          <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer"><?php echo $e(__('API token', 'cloudflare')); ?> <?php echo cf_icon('external'); ?></a>
+          <?php echo $e(__('with these permissions:', 'cloudflare')); ?>
+          <div class="cf-scopes">
+            <span class="badge text-bg-light border">Cache Purge · Edit</span>
+            <span class="badge text-bg-light border">Cache Rules · Edit</span>
+            <span class="badge text-bg-light border">Analytics · Read</span>
+            <span class="badge text-bg-light border">Zone · Read</span>
+          </div>
+        </li>
+        <li><?php echo $e(__('Paste it in Connection below and Save, then “Discover zone”.', 'cloudflare')); ?></li>
+        <li><?php echo $e(__('Run “Test connection” — it names any missing permission.', 'cloudflare')); ?></li>
+        <li><?php echo $e(__('Click “Install / update rules” to switch edge caching on.', 'cloudflare')); ?></li>
+        <li><?php echo $e(__('In Cloudflare, keep Development Mode off — it bypasses the cache.', 'cloudflare')); ?></li>
+      </ol>
+    </div>
+  </details>
 
   <form action="<?php echo $base; ?>" method="post">
     <?php echo osc_csrf_token_form(); ?>

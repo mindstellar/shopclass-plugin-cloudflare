@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.4
+
+### New
+- A "Getting started" setup guide on the settings page — numbered steps, the exact token scopes with a link to create the token, and the one Cloudflare toggle to leave off. Collapses once configured.
+
+### Changed
+- Moved the admin menu from Settings to Plugins.
+
 ## 1.1.3
 
 ### Fixed
