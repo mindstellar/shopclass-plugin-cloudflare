@@ -32,6 +32,11 @@ correct across versions. The plugin touches only the rules it created — your o
 rules are preserved — and it is safe by construction: a page the app marks
 `private, no-store` is never cached.
 
+**Cache lifetime.** Optionally set how long a shared cache may keep each page, per page
+type — item pages, static pages, and listings (home/search/category) — instead of the core
+default of 30s. Off by default; a longer item TTL is safe because purge-on-change keeps it
+fresh. Applied through the `public_cache_max_age` filter, so it works for any CDN.
+
 **Analytics.** A read-only widget shows the last 24h cache hit ratio, requests, and
 bandwidth served from cache.
 

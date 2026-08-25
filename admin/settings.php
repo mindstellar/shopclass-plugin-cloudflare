@@ -5,7 +5,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Render-only. Every POST is processed by Plugin::handleAdminPost() on the
- * init_admin hook, before this page prints.
+ * init_admin hook, before this page prints. One form, multiple submit buttons
+ * (name="cf_action"); the admin theme is Bootstrap 5, so this stays theme-native
+ * and dark-mode-aware via --bs-* tokens.
  */
 
 use mindstellar\cloudflare\Analytics;
@@ -17,7 +19,6 @@ if (!defined('ABS_PATH')) {
     exit('Direct access is not allowed.');
 }
 
-/** Human-readable byte size for the analytics table. Guarded: this file may be included once per request. */
 if (!function_exists('cf_bytes')) {
     function cf_bytes(int $bytes): string
     {
@@ -32,10 +33,29 @@ if (!function_exists('cf_bytes')) {
     }
 }
 
+if (!function_exists('cf_icon')) {
+    function cf_icon(string $name): string
+    {
+        $paths = array(
+            'cloud'   => '<path d="M6.5 19a4.5 4.5 0 0 1-.5-8.98 6 6 0 0 1 11.66-1.52A4.5 4.5 0 0 1 17.5 19h-11Z"/>',
+            'link'    => '<path d="M10.5 13.5a4 4 0 0 0 5.66 0l2-2a4 4 0 1 0-5.66-5.66l-1 1"/><path d="M13.5 10.5a4 4 0 0 0-5.66 0l-2 2a4 4 0 1 0 5.66 5.66l1-1"/>',
+            'shield'  => '<path d="M12 3 5 6v5c0 4.4 3 7.4 7 8.5 4-1.1 7-4.1 7-8.5V6l-7-3Z"/><path d="m9 12 2 2 4-4"/>',
+            'bolt'    => '<path d="M13 3 4 14h7l-1 7 9-11h-7l1-7Z"/>',
+            'chart'   => '<path d="M4 20V4"/><path d="M4 20h16"/><path d="M8.5 17v-4"/><path d="M13 17V9"/><path d="M17.5 17v-6"/>',
+            'refresh' => '<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/>',
+            'trash'   => '<path d="M4 7h16M9 7V5h6v2m-7 0 .8 12a1 1 0 0 0 1 1h4.4a1 1 0 0 0 1-1L16 7"/>',
+        );
+        $d = $paths[$name] ?? '';
+        return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $d . '</svg>';
+    }
+}
+
 $cfFile       = osc_plugin_folder(CF_PLUGIN_FILE) . 'admin/settings.php';
 $hasToken     = Plugin::token() !== '';
 $zoneId       = Plugin::zoneId();
 $purgeEnabled = Plugin::purgeEnabled();
+$ttlEnabled   = Plugin::ttlEnabled();
+$configured   = Plugin::isConfigured();
 
 // Live status (one API call each) — only when there's something to ask about.
 $client         = Client::fromSettings();
@@ -48,131 +68,227 @@ if ($client !== null && $zoneId !== '') {
 
 $fileEsc = osc_esc_html($cfFile);
 $base    = osc_esc_html(osc_admin_base_url(true));
-
-$hidden = static function ($action) use ($fileEsc) {
-    echo osc_csrf_token_form();
-    echo '<input type="hidden" name="page" value="plugins"/>';
-    echo '<input type="hidden" name="action" value="renderplugin"/>';
-    echo '<input type="hidden" name="file" value="' . $fileEsc . '"/>';
-    echo '<input type="hidden" name="cf_action" value="' . osc_esc_html($action) . '"/>';
-};
+$e       = 'osc_esc_html';
 ?>
-<h2 class="render-title"><?php echo osc_esc_html(__('Cloudflare', 'cloudflare')); ?></h2>
+<style>
+.cf-settings { max-width: 960px; }
+.cf-settings .cf-head { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin:.25rem 0 1.25rem; }
+.cf-settings .cf-head-title { display:flex; align-items:center; gap:.55rem; }
+.cf-settings .cf-head-title h2 { margin:0; font-size:1.5rem; font-weight:650; letter-spacing:-0.01em; }
+.cf-settings .cf-head-title svg { color: var(--bs-primary); }
+.cf-settings .cf-badges { display:flex; gap:.4rem; flex-wrap:wrap; }
+.cf-settings .cf-badges .badge { font-weight:600; padding:.42em .7em; }
+.cf-settings .card { border-color: var(--bs-border-color); }
+.cf-settings .cf-title { display:flex; align-items:center; gap:.5rem; font-size:1.02rem; font-weight:640; margin:0 0 .9rem; }
+.cf-settings .cf-title svg { color: var(--bs-secondary-color); }
+.cf-settings .cf-lead { color: var(--bs-secondary-color); font-size:.9rem; margin:0 0 1rem; }
+.cf-settings .form-label { font-weight:560; margin-bottom:.3rem; }
+.cf-settings .cf-hint { color: var(--bs-secondary-color); font-size:.82rem; margin-top:.3rem; }
+.cf-settings .cf-inline { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.85rem; }
+.cf-settings .form-switch .form-check-input { width:2.4em; height:1.2em; }
+.cf-settings .cf-ttl { transition: opacity .15s ease; }
+.cf-settings .cf-ttl.is-off { opacity:.45; }
+.cf-settings .cf-stats { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:.75rem; }
+.cf-settings .cf-stat { padding:.95rem 1.05rem; border:1px solid var(--bs-border-color); border-radius: var(--bs-border-radius); background: var(--bs-tertiary-bg); }
+.cf-settings .cf-stat-num { font-size:1.7rem; font-weight:680; line-height:1.05; letter-spacing:-0.02em; }
+.cf-settings .cf-stat-lab { color: var(--bs-secondary-color); font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-top:.15rem; }
+.cf-settings .cf-stat-sub { color: var(--bs-secondary-color); font-size:.82rem; margin-top:.15rem; }
+.cf-settings .cf-ratio { grid-column: 1 / -1; }
+.cf-settings .cf-ratio .progress { height:.5rem; margin-top:.55rem; background: var(--bs-secondary-bg); }
+.cf-settings .cf-empty { text-align:center; padding:1.75rem 1rem; color: var(--bs-secondary-color); }
+.cf-settings .cf-empty svg { color: var(--bs-border-color); }
+.cf-settings .cf-savebar { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-top:1.1rem; }
+.cf-settings .cf-savebar .cf-spacer { flex:1 1 auto; }
+</style>
 
-<p class="help-block">
-    <?php echo osc_esc_html(__('Connect this site to Cloudflare to purge changed pages automatically, install the recommended cache rules, and see cache analytics.', 'cloudflare')); ?>
-</p>
+<div class="cf-settings">
 
-<!-- ── Credentials + purge toggle ─────────────────────────────────────────── -->
-<form action="<?php echo $base; ?>" method="post" class="form-horizontal">
-    <?php $hidden('save'); ?>
+  <div class="cf-head">
+    <div class="cf-head-title"><?php echo cf_icon('cloud'); ?><h2><?php echo $e(__('Cloudflare', 'cloudflare')); ?></h2></div>
+    <div class="cf-badges">
+      <?php if ($configured) { ?>
+        <span class="badge text-bg-success"><?php echo $e(__('Configured', 'cloudflare')); ?></span>
+      <?php } else { ?>
+        <span class="badge text-bg-secondary"><?php echo $e(__('Set-up needed', 'cloudflare')); ?></span>
+      <?php } ?>
+      <?php if ($zoneId !== '') { ?>
+        <span class="badge text-bg-light border"><?php echo $e(__('Zone', 'cloudflare')) . ' ' . $e(substr($zoneId, 0, 8)); ?>…</span>
+      <?php } ?>
+      <span class="badge <?php echo $purgeEnabled ? 'text-bg-success' : 'text-bg-secondary'; ?>">
+        <?php echo $e($purgeEnabled ? __('Auto-purge on', 'cloudflare') : __('Auto-purge off', 'cloudflare')); ?>
+      </span>
+    </div>
+  </div>
 
-    <div class="form-row">
-        <div class="form-label"><?php echo osc_esc_html(__('API token', 'cloudflare')); ?></div>
-        <div class="form-controls">
-            <input type="password" name="api_token" class="input-large" autocomplete="off"
-                   placeholder="<?php echo $hasToken ? osc_esc_html(__('•••••••• (saved — leave blank to keep)', 'cloudflare')) : osc_esc_html(__('Cloudflare API token', 'cloudflare')); ?>"/>
-            <?php if ($hasToken) { ?>
-                <label class="help-block">
-                    <input type="checkbox" name="clear_token" value="1"/> <?php echo osc_esc_html(__('Clear the stored token', 'cloudflare')); ?>
-                </label>
-            <?php } ?>
-            <p class="help-block">
-                <?php echo osc_esc_html(__('A zone-scoped token. Needed permissions: Cache Purge (edit), Cache Rules (edit), Analytics (read), Zone (read).', 'cloudflare')); ?>
+  <form action="<?php echo $base; ?>" method="post">
+    <?php echo osc_csrf_token_form(); ?>
+    <input type="hidden" name="page" value="plugins"/>
+    <input type="hidden" name="action" value="renderplugin"/>
+    <input type="hidden" name="file" value="<?php echo $fileEsc; ?>"/>
+
+    <div class="row g-3">
+      <!-- Connection ------------------------------------------------------->
+      <div class="col-12 col-xl-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h3 class="cf-title"><?php echo cf_icon('link'); ?><?php echo $e(__('Connection', 'cloudflare')); ?></h3>
+
+            <div class="mb-3">
+              <label class="form-label" for="cf-token"><?php echo $e(__('API token', 'cloudflare')); ?></label>
+              <input type="password" class="form-control" id="cf-token" name="api_token" autocomplete="off"
+                     placeholder="<?php echo $hasToken ? $e(__('•••••••• saved', 'cloudflare')) : $e(__('Cloudflare API token', 'cloudflare')); ?>"/>
+              <?php if ($hasToken) { ?>
+                <div class="form-check mt-2">
+                  <input class="form-check-input" type="checkbox" value="1" id="cf-clear" name="clear_token"/>
+                  <label class="form-check-label cf-hint" for="cf-clear"><?php echo $e(__('Clear the stored token', 'cloudflare')); ?></label>
+                </div>
+              <?php } ?>
+              <div class="cf-hint"><?php echo $e(__('Zone-scoped token — Cache Purge (edit), Cache Rules (edit), Analytics (read), Zone (read).', 'cloudflare')); ?></div>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label" for="cf-zone"><?php echo $e(__('Zone ID', 'cloudflare')); ?></label>
+              <div class="input-group">
+                <input type="text" class="form-control" id="cf-zone" name="zone_id" value="<?php echo $e($zoneId); ?>"
+                       placeholder="<?php echo $e(__('e.g. 023e105f4ecef8ad9ca31a8372d0c353', 'cloudflare')); ?>"/>
+                <button class="btn btn-outline-secondary" type="submit" name="cf_action" value="discover_zone"><?php echo $e(__('Discover', 'cloudflare')); ?></button>
+              </div>
+            </div>
+
+            <div class="cf-inline">
+              <button class="btn btn-outline-secondary btn-sm" type="submit" name="cf_action" value="test"><?php echo $e(__('Test connection', 'cloudflare')); ?></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cache rules ------------------------------------------------------>
+      <div class="col-12 col-xl-6">
+        <div class="card h-100">
+          <div class="card-body">
+            <h3 class="cf-title"><?php echo cf_icon('shield'); ?><?php echo $e(__('Cache rules', 'cloudflare')); ?></h3>
+            <p class="cf-lead"><?php echo $e(__('Three rules in your zone: cache public pages (respecting the origin), bypass the admin, and bypass any logged-in / personalized request. Only the plugin’s own rules are touched.', 'cloudflare')); ?></p>
+            <p class="mb-3">
+              <?php
+              if ($client === null || $zoneId === '') {
+                  echo '<span class="badge text-bg-warning">' . $e(__('Needs token + zone', 'cloudflare')) . '</span>';
+              } elseif ($rulesInstalled) {
+                  echo '<span class="badge text-bg-success">' . $e(__('Installed', 'cloudflare')) . '</span>';
+              } else {
+                  echo '<span class="badge text-bg-secondary">' . $e(__('Not installed', 'cloudflare')) . '</span>';
+              }
+              ?>
             </p>
+            <button class="btn btn-outline-secondary btn-sm" type="submit" name="cf_action" value="install_rules">
+              <?php echo cf_icon('refresh'); ?> <?php echo $e(__('Install / update rules', 'cloudflare')); ?>
+            </button>
+          </div>
         </div>
+      </div>
     </div>
 
-    <div class="form-row">
-        <div class="form-label"><?php echo osc_esc_html(__('Zone ID', 'cloudflare')); ?></div>
-        <div class="form-controls">
-            <input type="text" name="zone_id" class="input-large" value="<?php echo osc_esc_html($zoneId); ?>"
-                   placeholder="<?php echo osc_esc_html(__('e.g. 023e105f4ecef8ad9ca31a8372d0c353', 'cloudflare')); ?>"/>
-            <p class="help-block"><?php echo osc_esc_html(__('Leave set, or use “Discover zone” below to fill it from your site domain.', 'cloudflare')); ?></p>
+    <!-- Caching + TTL -------------------------------------------------------->
+    <div class="card mt-3">
+      <div class="card-body">
+        <h3 class="cf-title"><?php echo cf_icon('bolt'); ?><?php echo $e(__('Caching', 'cloudflare')); ?></h3>
+
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" role="switch" id="cf-purge" name="purge_enabled" value="1" <?php echo $purgeEnabled ? 'checked' : ''; ?>/>
+          <label class="form-check-label" for="cf-purge"><?php echo $e(__('Purge changed pages automatically when a listing, category, or page changes', 'cloudflare')); ?></label>
         </div>
-    </div>
 
-    <div class="form-row">
-        <div class="form-label"><?php echo osc_esc_html(__('Automatic purge', 'cloudflare')); ?></div>
-        <div class="form-controls">
-            <label>
-                <input type="checkbox" name="purge_enabled" value="1" <?php echo $purgeEnabled ? 'checked' : ''; ?>/>
-                <?php echo osc_esc_html(__('Purge changed pages when a listing, category, or page changes', 'cloudflare')); ?>
-            </label>
+        <hr class="my-3">
+
+        <div class="form-check form-switch mb-1">
+          <input class="form-check-input" type="checkbox" role="switch" id="cf-ttl-enabled" name="ttl_enabled" value="1" <?php echo $ttlEnabled ? 'checked' : ''; ?>/>
+          <label class="form-check-label fw-semibold" for="cf-ttl-enabled"><?php echo $e(__('Set cache lifetime per page type', 'cloudflare')); ?></label>
         </div>
+        <p class="cf-hint mb-3"><?php echo $e(__('How long a shared cache may keep each page (the app’s s-maxage). Longer is safe because purge-on-change keeps it fresh. Off = the core default of 30s everywhere.', 'cloudflare')); ?></p>
+
+        <div class="row g-3 cf-ttl <?php echo $ttlEnabled ? '' : 'is-off'; ?>" id="cf-ttl-grid">
+          <?php
+          $ttlFields = array(
+              'ttl_item'    => array(__('Item pages', 'cloudflare'), Plugin::ttlItem(), __('One listing — changes rarely; owners bypass cache.', 'cloudflare')),
+              'ttl_static'  => array(__('Static pages', 'cloudflare'), Plugin::ttlStatic(), __('About, terms — effectively immutable.', 'cloudflare')),
+              'ttl_listing' => array(__('Listings', 'cloudflare'), Plugin::ttlListing(), __('Home, search, category — keep short so new ads show fast.', 'cloudflare')),
+          );
+          foreach ($ttlFields as $key => $f) {
+              echo '<div class="col-12 col-md-4">';
+              echo '<label class="form-label" for="cf-' . $e($key) . '">' . $e($f[0]) . '</label>';
+              echo '<div class="input-group">';
+              echo '<input type="number" min="1" max="86400" class="form-control" id="cf-' . $e($key) . '" name="' . $e($key) . '" value="' . $e((string)$f[1]) . '"/>';
+              echo '<span class="input-group-text">' . $e(__('sec', 'cloudflare')) . '</span>';
+              echo '</div>';
+              echo '<div class="cf-hint">' . $e($f[2]) . '</div>';
+              echo '</div>';
+          }
+          ?>
+        </div>
+      </div>
     </div>
 
-    <div class="form-actions">
-        <button type="submit" class="btn btn-submit"><?php echo osc_esc_html(__('Save', 'cloudflare')); ?></button>
+    <!-- Save / maintenance --------------------------------------------------->
+    <div class="cf-savebar">
+      <button type="submit" name="cf_action" value="save" class="btn btn-primary"><?php echo $e(__('Save changes', 'cloudflare')); ?></button>
+      <span class="cf-spacer"></span>
+      <button type="submit" name="cf_action" value="purge_all" class="btn btn-outline-danger btn-sm"
+              onclick="return confirm('<?php echo $e(__('Purge the entire Cloudflare cache?', 'cloudflare')); ?>');">
+        <?php echo cf_icon('trash'); ?> <?php echo $e(__('Purge everything', 'cloudflare')); ?>
+      </button>
     </div>
-</form>
+  </form>
 
-<!-- ── Connection / zone actions ──────────────────────────────────────────── -->
-<h3 class="render-title"><?php echo osc_esc_html(__('Connection', 'cloudflare')); ?></h3>
-<div class="form-actions" style="display:flex;gap:.5rem;flex-wrap:wrap;">
-    <form action="<?php echo $base; ?>" method="post"><?php $hidden('test'); ?>
-        <button type="submit" class="btn"><?php echo osc_esc_html(__('Test connection', 'cloudflare')); ?></button>
-    </form>
-    <form action="<?php echo $base; ?>" method="post"><?php $hidden('discover_zone'); ?>
-        <button type="submit" class="btn"><?php echo osc_esc_html(__('Discover zone', 'cloudflare')); ?></button>
-    </form>
+  <!-- Analytics ------------------------------------------------------------->
+  <div class="card mt-3">
+    <div class="card-body">
+      <h3 class="cf-title"><?php echo cf_icon('chart'); ?><?php echo $e(__('Cache analytics', 'cloudflare')); ?> <span class="cf-lead ms-1 mb-0"><?php echo $e(__('last 24h', 'cloudflare')); ?></span></h3>
+      <?php if ($stats !== null && !empty($stats['ok'])) { $ratio = (float)$stats['hitRatio']; ?>
+        <div class="cf-stats">
+          <div class="cf-stat cf-ratio">
+            <div class="d-flex justify-content-between align-items-baseline">
+              <span class="cf-stat-lab mb-0"><?php echo $e(__('Cache hit ratio', 'cloudflare')); ?></span>
+              <span class="cf-stat-num" style="font-size:1.4rem;"><?php echo $e((string)$ratio); ?>%</span>
+            </div>
+            <div class="progress" role="progressbar" aria-valuenow="<?php echo $e((string)$ratio); ?>" aria-valuemin="0" aria-valuemax="100">
+              <div class="progress-bar bg-success" style="width: <?php echo $e((string)max(0, min(100, $ratio))); ?>%"></div>
+            </div>
+          </div>
+          <div class="cf-stat">
+            <div class="cf-stat-num"><?php echo $e(number_format((float)$stats['requests'])); ?></div>
+            <div class="cf-stat-lab"><?php echo $e(__('Requests', 'cloudflare')); ?></div>
+            <div class="cf-stat-sub"><?php echo $e(number_format((float)$stats['cachedRequests'])) . ' ' . $e(__('cached', 'cloudflare')); ?></div>
+          </div>
+          <div class="cf-stat">
+            <div class="cf-stat-num"><?php echo $e(cf_bytes((int)$stats['bytes'])); ?></div>
+            <div class="cf-stat-lab"><?php echo $e(__('Bandwidth', 'cloudflare')); ?></div>
+            <div class="cf-stat-sub"><?php echo $e(cf_bytes((int)$stats['cachedBytes'])) . ' ' . $e(__('from cache', 'cloudflare')); ?></div>
+          </div>
+        </div>
+      <?php } else { ?>
+        <div class="cf-empty">
+          <?php echo cf_icon('chart'); ?>
+          <p class="mb-0 mt-2">
+            <?php
+            if ($client !== null && $zoneId !== '') {
+                echo $e(__('No analytics yet — the token may lack the Analytics (read) scope, or there’s no data for this window.', 'cloudflare'));
+            } else {
+                echo $e(__('Connect the plugin to see cache hit ratio, requests, and bandwidth.', 'cloudflare'));
+            }
+            ?>
+          </p>
+        </div>
+      <?php } ?>
+    </div>
+  </div>
 </div>
 
-<!-- ── Cache rules ────────────────────────────────────────────────────────── -->
-<h3 class="render-title"><?php echo osc_esc_html(__('Cache rules', 'cloudflare')); ?></h3>
-<p class="help-block">
-    <?php echo osc_esc_html(__('Installs three rules in your zone: cache public pages (respecting the origin), bypass the admin, and bypass any logged-in / personalized request. Only the plugin’s own rules are touched.', 'cloudflare')); ?>
-</p>
-<p>
-    <?php
-    if ($client === null || $zoneId === '') {
-        echo '<span class="flashmessage flashmessage-warning">' . osc_esc_html(__('Set the API token and Zone ID to manage cache rules.', 'cloudflare')) . '</span>';
-    } elseif ($rulesInstalled) {
-        echo osc_esc_html(__('Status: installed.', 'cloudflare'));
-    } else {
-        echo osc_esc_html(__('Status: not installed.', 'cloudflare'));
-    }
-    ?>
-</p>
-<form action="<?php echo $base; ?>" method="post"><?php $hidden('install_rules'); ?>
-    <button type="submit" class="btn btn-submit"><?php echo osc_esc_html(__('Install / update cache rules', 'cloudflare')); ?></button>
-</form>
-
-<!-- ── Manual purge ───────────────────────────────────────────────────────── -->
-<h3 class="render-title"><?php echo osc_esc_html(__('Purge', 'cloudflare')); ?></h3>
-<form action="<?php echo $base; ?>" method="post"><?php $hidden('purge_all'); ?>
-    <button type="submit" class="btn"><?php echo osc_esc_html(__('Purge everything', 'cloudflare')); ?></button>
-    <span class="help-block"><?php echo osc_esc_html(__('Clears the whole Cloudflare cache. Handy after a theme or site-wide change.', 'cloudflare')); ?></span>
-</form>
-
-<!-- ── Analytics ──────────────────────────────────────────────────────────── -->
-<h3 class="render-title"><?php echo osc_esc_html(__('Cache analytics (last 24h)', 'cloudflare')); ?></h3>
-<?php if ($stats !== null && !empty($stats['ok'])) { ?>
-    <table class="table">
-        <tbody>
-        <tr>
-            <td><?php echo osc_esc_html(__('Cache hit ratio', 'cloudflare')); ?></td>
-            <td><strong><?php echo osc_esc_html((string)$stats['hitRatio']); ?>%</strong></td>
-        </tr>
-        <tr>
-            <td><?php echo osc_esc_html(__('Requests', 'cloudflare')); ?></td>
-            <td><?php echo osc_esc_html(number_format((float)$stats['requests'])); ?>
-                (<?php echo osc_esc_html(number_format((float)$stats['cachedRequests'])); ?> <?php echo osc_esc_html(__('cached', 'cloudflare')); ?>)</td>
-        </tr>
-        <tr>
-            <td><?php echo osc_esc_html(__('Bandwidth', 'cloudflare')); ?></td>
-            <td><?php echo osc_esc_html(cf_bytes((int)$stats['bytes'])); ?>
-                (<?php echo osc_esc_html(cf_bytes((int)$stats['cachedBytes'])); ?> <?php echo osc_esc_html(__('from cache', 'cloudflare')); ?>)</td>
-        </tr>
-        </tbody>
-    </table>
-<?php } elseif ($client !== null && $zoneId !== '') { ?>
-    <p class="help-block">
-        <?php echo osc_esc_html(__('No analytics available yet. The token may lack the Analytics (read) scope, or your plan’s retention window has no data for this period.', 'cloudflare')); ?>
-        <?php if ($stats !== null && $stats['error'] !== '') { ?>
-            <br><em><?php echo osc_esc_html($stats['error']); ?></em>
-        <?php } ?>
-    </p>
-<?php } else { ?>
-    <p class="help-block"><?php echo osc_esc_html(__('Connect the plugin to see cache analytics.', 'cloudflare')); ?></p>
-<?php } ?>
+<script>
+(function () {
+  var toggle = document.getElementById('cf-ttl-enabled');
+  var grid = document.getElementById('cf-ttl-grid');
+  if (!toggle || !grid) { return; }
+  function sync() { grid.classList.toggle('is-off', !toggle.checked); }
+  toggle.addEventListener('change', sync);
+  sync();
+})();
+</script>

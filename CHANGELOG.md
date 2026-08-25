@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0
+
+### New
+- Editable per-page-type cache TTL (item / static / listings), applied via the `public_cache_max_age` filter — off by default; a longer item TTL is safe because purge-on-change keeps it fresh.
+- Redesigned settings page: Bootstrap-native cards, status badges, a cache-analytics widget with stat tiles, and dark-mode support.
+
+### Changed
+- Settings save as one form; every action button (Test, Discover, Install rules) persists the form first, so it acts on what's on screen.
+
 ## 1.0.0
 
 First release.

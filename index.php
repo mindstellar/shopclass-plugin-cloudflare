@@ -3,7 +3,7 @@
 Plugin Name: Cloudflare
 Plugin URI: https://github.com/mindstellar/shopclass-plugin-cloudflare
 Description: Purge Cloudflare's cache when listings change, install the recommended cache rules, and view cache analytics — all from the admin.
-Version: 1.0.0
+Version: 1.1.0
 Author: Mindstellar Community
 Author URI: https://mindstellar.com
 Short Name: cloudflare
@@ -98,6 +98,10 @@ osc_add_hook('after_delete_page', 'cf_purge_page');
 // Retry anything that failed its immediate purge.
 osc_add_hook('cron_hourly', 'cf_flush_queue');
 
+// Per-page-type cache TTL (when enabled) — vary the app's public s-maxage by page
+// type. A longer item TTL is safe precisely because purge-on-change keeps it fresh.
+osc_add_filter('public_cache_max_age', 'cf_public_cache_max_age');
+
 // ── Glue: keep index.php thin, logic lives in src/ ───────────────────────────
 function cf_purge_item_array($item)
 {
@@ -129,4 +133,9 @@ function cf_purge_page($pageId)
 function cf_flush_queue()
 {
     Queue::flush();
+}
+
+function cf_public_cache_max_age($ttl)
+{
+    return Plugin::pageTtl((int)$ttl);
 }
