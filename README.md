@@ -3,6 +3,8 @@
 Connect a Shopclass site to Cloudflare: purge changed pages automatically, install
 the recommended cache rules, and view cache analytics — all from the admin.
 
+![The Cloudflare plugin settings page in the Shopclass admin](assets/screenshot-settings.png)
+
 ## What it does
 
 **Automatic cache purge.** When a listing is created, edited, deleted, or changes
