@@ -3,7 +3,7 @@
 Plugin Name: Cloudflare
 Plugin URI: https://github.com/mindstellar/shopclass-plugin-cloudflare
 Description: Purge Cloudflare's cache when listings change, install the recommended cache rules, and view cache analytics — all from the admin.
-Version: 1.1.1
+Version: 1.1.2
 Author: Mindstellar Community
 Author URI: https://mindstellar.com
 Short Name: cloudflare

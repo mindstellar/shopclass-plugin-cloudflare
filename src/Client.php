@@ -166,6 +166,62 @@ class Client
         return array('ok' => true, 'error' => '');
     }
 
+    /**
+     * Probe each capability the plugin needs, so a token missing one scope surfaces
+     * instead of failing silently later. Read-only except the purge probe, which
+     * purges a dotfile URL on the zone that is never a real page (harmless, idempotent).
+     *
+     * @return array<string,array{ok:bool,error:string}> keyed token|zone|purge|rules|analytics
+     */
+    public function checkPermissions(): array
+    {
+        $out = array();
+
+        $t = $this->request('GET', self::API . '/user/tokens/verify');
+        $out['token'] = array('ok' => (bool)$t['ok'], 'error' => $t['error']);
+
+        $zoneName = '';
+        if ($this->zoneId === '') {
+            $out['zone'] = array('ok' => false, 'error' => __('no zone id', 'cloudflare'));
+        } else {
+            $z = $this->request('GET', self::API . '/zones/' . $this->zoneId);
+            $out['zone'] = array('ok' => (bool)$z['ok'], 'error' => $z['error']);
+            $zoneName = (string)($z['data']['result']['name'] ?? '');
+        }
+
+        // Cache Purge — probe a URL on the zone that can't be a real cached page.
+        if ($zoneName === '') {
+            $out['purge'] = array('ok' => false, 'error' => __('zone required', 'cloudflare'));
+        } else {
+            $p = $this->request('POST', self::API . '/zones/' . $this->zoneId . '/purge_cache', array('files' => array('https://' . $zoneName . '/.cf-permission-probe')));
+            $out['purge'] = array('ok' => (bool)$p['ok'], 'error' => $p['error']);
+        }
+
+        // Cache Rules — reading the entrypoint needs the permission; a 404 (no ruleset
+        // yet) still means access is granted, so only a real failure counts as missing.
+        if ($this->zoneId === '') {
+            $out['rules'] = array('ok' => false, 'error' => __('zone required', 'cloudflare'));
+        } else {
+            $r = $this->request('GET', self::API . '/zones/' . $this->zoneId . '/rulesets/phases/http_request_cache_settings/entrypoint');
+            $ok = !empty($r['ok']) || $r['status'] === 404;
+            $out['rules'] = array('ok' => $ok, 'error' => $ok ? '' : $r['error']);
+        }
+
+        // Analytics — a minimal query over a dataset that needs Analytics:Read.
+        if ($this->zoneId === '') {
+            $out['analytics'] = array('ok' => false, 'error' => __('zone required', 'cloudflare'));
+        } else {
+            $since = gmdate('Y-m-d\TH:i:s\Z', time() - 3600);
+            $g = $this->graphql(
+                'query($z:String!,$s:Time!){viewer{zones(filter:{zoneTag:$z}){httpRequests1hGroups(limit:1,filter:{datetime_geq:$s}){count}}}}',
+                array('z' => $this->zoneId, 's' => $since)
+            );
+            $out['analytics'] = array('ok' => (bool)$g['ok'], 'error' => $g['error']);
+        }
+
+        return $out;
+    }
+
     // ── rulesets (cache rules) ─────────────────────────────────────────────────
     /**
      * The zone's entrypoint ruleset for the cache-settings phase, or null.

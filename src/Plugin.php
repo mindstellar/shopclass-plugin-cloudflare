@@ -151,7 +151,7 @@ class Plugin
                 osc_add_flash_ok_message(__('Settings saved', 'cloudflare'), 'admin');
                 break;
             case 'test':
-                self::flashResult(self::testConnection(), __('Cloudflare connection OK', 'cloudflare'));
+                self::testConnection();
                 break;
             case 'discover_zone':
                 self::discoverZone();
@@ -187,13 +187,42 @@ class Plugin
         osc_reset_preferences();
     }
 
-    private static function testConnection(): array
+    /** Probe every needed permission and flash exactly which scopes are present/missing. */
+    private static function testConnection(): void
     {
         $client = Client::fromSettings();
         if ($client === null) {
-            return array('ok' => false, 'error' => __('Enter an API token first.', 'cloudflare'));
+            osc_add_flash_error_message(__('Enter an API token first.', 'cloudflare'), 'admin');
+            return;
         }
-        return $client->verify();
+
+        $labels = array(
+            'token'     => __('token valid', 'cloudflare'),
+            'zone'      => __('zone access', 'cloudflare'),
+            'purge'     => __('cache purge', 'cloudflare'),
+            'rules'     => __('cache rules', 'cloudflare'),
+            'analytics' => __('analytics', 'cloudflare'),
+        );
+        $perms   = $client->checkPermissions();
+        $present = array();
+        $missing = array();
+        foreach ($labels as $key => $label) {
+            if (!empty($perms[$key]['ok'])) {
+                $present[] = $label;
+            } else {
+                $missing[] = $label;
+            }
+        }
+
+        if ($missing === array()) {
+            osc_add_flash_ok_message(sprintf(__('Cloudflare connection OK — all permissions present (%s).', 'cloudflare'), implode(', ', $present)), 'admin');
+        } else {
+            osc_add_flash_error_message(sprintf(
+                __('Cloudflare: missing permission(s) — %1$s. Add the matching scope to your API token. Present: %2$s.', 'cloudflare'),
+                osc_esc_html(implode(', ', $missing)),
+                osc_esc_html($present === array() ? __('none', 'cloudflare') : implode(', ', $present))
+            ), 'admin');
+        }
     }
 
     private static function discoverZone(): void
@@ -244,12 +273,4 @@ class Plugin
         }
     }
 
-    private static function flashResult(array $result, string $okMsg): void
-    {
-        if (!empty($result['ok'])) {
-            osc_add_flash_ok_message($okMsg, 'admin');
-        } else {
-            osc_add_flash_error_message(sprintf(__('Cloudflare error: %s', 'cloudflare'), osc_esc_html($result['error'] ?? __('unknown', 'cloudflare'))), 'admin');
-        }
-    }
 }

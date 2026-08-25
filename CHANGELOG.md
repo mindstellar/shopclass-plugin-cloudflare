@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.2
+
+### New
+- "Test connection" now checks every permission the plugin needs (token, zone, cache purge, cache rules, analytics) and names any that are missing — so a token short a scope (e.g. Cache Purge) surfaces instead of failing silently.
+
 ## 1.1.1
 
 ### Changed
