@@ -3,7 +3,7 @@
 Plugin Name: Cloudflare
 Plugin URI: https://github.com/mindstellar/shopclass-plugin-cloudflare
 Description: Purge Cloudflare's cache when listings change, install the recommended cache rules, and view cache analytics — all from the admin.
-Version: 1.1.0
+Version: 1.1.1
 Author: Mindstellar Community
 Author URI: https://mindstellar.com
 Short Name: cloudflare
@@ -98,8 +98,8 @@ osc_add_hook('after_delete_page', 'cf_purge_page');
 // Retry anything that failed its immediate purge.
 osc_add_hook('cron_hourly', 'cf_flush_queue');
 
-// Per-page-type cache TTL (when enabled) — vary the app's public s-maxage by page
-// type. A longer item TTL is safe precisely because purge-on-change keeps it fresh.
+// Per-page-type Cloudflare edge TTL (when enabled) — emits a CDN-only header so the
+// origin micro-cache keeps its short, self-healing s-maxage. See cf_public_cache_max_age.
 osc_add_filter('public_cache_max_age', 'cf_public_cache_max_age');
 
 // ── Glue: keep index.php thin, logic lives in src/ ───────────────────────────
@@ -137,5 +137,13 @@ function cf_flush_queue()
 
 function cf_public_cache_max_age($ttl)
 {
-    return Plugin::pageTtl((int)$ttl);
+    // The per-page-type TTL targets Cloudflare's edge ONLY, via a CDN-specific
+    // header Cloudflare honours above Cache-Control. The origin micro-cache (and any
+    // other shared cache) keeps the short s-maxage returned below, so it self-heals —
+    // it has no invalidation; only the CDN is purged on change. A long origin TTL
+    // would otherwise serve stale pages for the whole TTL, defeating purge-on-change.
+    if (Plugin::ttlEnabled() && !headers_sent()) {
+        header('Cloudflare-CDN-Cache-Control: max-age=' . Plugin::pageTtl((int)$ttl), true);
+    }
+    return $ttl;
 }

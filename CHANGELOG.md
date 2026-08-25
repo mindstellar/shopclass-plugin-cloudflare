@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1
+
+### Changed
+- The per-page-type cache TTL now targets Cloudflare's edge only, via a `Cloudflare-CDN-Cache-Control` header, instead of raising `s-maxage`. The origin micro-cache keeps its short, self-healing TTL — a long `s-maxage` would have made the un-purgeable origin cache serve stale pages for the whole TTL, defeating purge-on-change.
+
 ## 1.1.0
 
 ### New

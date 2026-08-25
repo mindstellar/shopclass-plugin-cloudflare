@@ -201,9 +201,9 @@ $e       = 'osc_esc_html';
 
         <div class="form-check form-switch mb-1">
           <input class="form-check-input" type="checkbox" role="switch" id="cf-ttl-enabled" name="ttl_enabled" value="1" <?php echo $ttlEnabled ? 'checked' : ''; ?>/>
-          <label class="form-check-label fw-semibold" for="cf-ttl-enabled"><?php echo $e(__('Set cache lifetime per page type', 'cloudflare')); ?></label>
+          <label class="form-check-label fw-semibold" for="cf-ttl-enabled"><?php echo $e(__('Set Cloudflare edge cache lifetime per page type', 'cloudflare')); ?></label>
         </div>
-        <p class="cf-hint mb-3"><?php echo $e(__('How long a shared cache may keep each page (the app’s s-maxage). Longer is safe because purge-on-change keeps it fresh. Off = the core default of 30s everywhere.', 'cloudflare')); ?></p>
+        <p class="cf-hint mb-3"><?php echo $e(__('How long Cloudflare’s edge keeps each page. The origin cache stays short and self-heals, so only Cloudflare holds the longer copy — safe because purge-on-change clears it. Off = the origin’s default everywhere.', 'cloudflare')); ?></p>
 
         <div class="row g-3 cf-ttl <?php echo $ttlEnabled ? '' : 'is-off'; ?>" id="cf-ttl-grid">
           <?php
