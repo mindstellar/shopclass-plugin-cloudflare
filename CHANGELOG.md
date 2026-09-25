@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.5
+
+### Changed
+
+- Tested up to Shopclass 6.4.
+
 ## 1.1.4
 
 ### New

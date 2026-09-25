@@ -8,3 +8,4 @@ DESIGN-settings.md
 *.map
 *.zip
 .distignore
+assets/screenshot-*
