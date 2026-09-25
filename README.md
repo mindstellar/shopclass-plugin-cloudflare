@@ -3,7 +3,7 @@
 Connect a Shopclass site to Cloudflare: purge changed pages automatically, install
 the recommended cache rules, and view cache analytics — all from the admin.
 
-![The Cloudflare plugin settings page in the Shopclass admin](assets/screenshot-settings.png)
+![The Cloudflare plugin settings page in the Shopclass admin](assets/screenshot-1.png)
 
 ## What it does
 
@@ -27,26 +27,27 @@ enumerated, so they rely on whatever TTL your cache rules give them.
 2. bypass the admin (`/oc-admin/*`);
 3. bypass any request carrying a login/personalization cookie.
 
-The cookie list comes from core (`osc_cache_relevant_cookies()`), so it stays
-correct across versions. The plugin touches only the rules it created — your other
+The cookie list comes from core, so it stays correct as Shopclass updates. The plugin touches only the rules it created — your other
 rules are preserved — and it is safe by construction: a page the app marks
 `private, no-store` is never cached.
 
-**Cache lifetime.** Optionally set how long **Cloudflare's edge** keeps each page, per page
-type — item, static, and listings (home/search/category). Sent as a `Cloudflare-CDN-Cache-Control`
-header, so only Cloudflare holds the longer copy while the origin micro-cache keeps its short,
-self-healing TTL (the origin has no invalidation; only the edge is purged). Off by default; a
-longer item TTL is safe because purge-on-change clears the edge — so it relies on cache purge
-working.
+**Cache lifetime.** Optionally set how long Cloudflare keeps each kind of page: listings,
+static pages, and home, search and category pages. Off by default. A longer time is safe
+because a change still purges the page.
 
 **Analytics.** A read-only widget shows the last 24h cache hit ratio, requests, and
 bandwidth served from cache.
 
 ## Requirements
 
-- Shopclass 6.2.0+ (uses the core caching contract and `osc_cache_relevant_cookies()`).
+- Shopclass 6.2.0 or later, tested up to 6.4.
 - PHP 8.0+.
 - A Cloudflare account with the site as a zone.
+
+## Install
+
+From the admin: **Plugins → Manage plugins → Browse**, find *Cloudflare*, then **Install**.
+Or: `php oc-cli.php market:install cloudflare`.
 
 ## Setup
 
@@ -55,7 +56,7 @@ bandwidth served from cache.
    - **Cache Rules** — Edit
    - **Analytics** — Read
    - **Zone** — Read
-2. In admin, open **Settings → Cloudflare**, paste the token, and Save.
+2. In admin, open **Plugins → Cloudflare**, paste the token, and Save.
 3. Click **Discover zone** to fill the Zone ID from your site domain (or paste it),
    then **Test connection**.
 4. Click **Install / update cache rules**.
