@@ -1,9 +1,9 @@
 # Cloudflare
 
-Connect a Shopclass site to Cloudflare: purge changed pages automatically, install
-the recommended cache rules, and view cache analytics — all from the admin.
+Connect a ShopClass site to Cloudflare: purge changed pages automatically, install
+the recommended cache rules, and view cache analytics, all from the admin.
 
-![The Cloudflare plugin settings page in the Shopclass admin](assets/screenshot-1.png)
+![The Cloudflare plugin settings page in the ShopClass admin](assets/screenshot-1.png)
 
 ## What it does
 
@@ -12,13 +12,13 @@ state (enabled/disabled, activated, made premium, expiry changed), and when a
 category or static page changes, the plugin purges the affected URLs at Cloudflare:
 the item's own page (per enabled locale), the home page, the item's category
 listing, the seller's public profile, and the sitemap index. All URLs are derived
-from core helpers — nothing about your site's structure is hardcoded.
+from core helpers. Nothing about your site's structure is hardcoded.
 
 Purges are immediate and best-effort; anything that fails (a Cloudflare blip, an
 expired token) is queued and retried on the hourly cron, so a purge is never lost
 and a listing save is never blocked.
 
-Search and filter result URLs are **not** purged — they are unbounded and can't be
+Search and filter result URLs are **not** purged. They are unbounded and can't be
 enumerated, so they rely on whatever TTL your cache rules give them.
 
 **Cache rules.** One click installs three rules in your zone's cache phase:
@@ -27,8 +27,8 @@ enumerated, so they rely on whatever TTL your cache rules give them.
 2. bypass the admin (`/oc-admin/*`);
 3. bypass any request carrying a login/personalization cookie.
 
-The cookie list comes from core, so it stays correct as Shopclass updates. The plugin touches only the rules it created — your other
-rules are preserved — and it is safe by construction: a page the app marks
+The cookie list comes from core, so it stays correct as ShopClass updates. The plugin touches only the rules it created (your other
+rules are preserved), and it is safe by construction: a page the app marks
 `private, no-store` is never cached.
 
 **Cache lifetime.** Optionally set how long Cloudflare keeps each kind of page: listings,
@@ -40,7 +40,7 @@ bandwidth served from cache.
 
 ## Requirements
 
-- Shopclass 6.2.0 or later, tested up to 6.4.
+- ShopClass 6.2.0 or later, tested up to 6.4.
 - PHP 8.0+.
 - A Cloudflare account with the site as a zone.
 
@@ -52,10 +52,10 @@ Or: `php oc-cli.php market:install cloudflare`.
 ## Setup
 
 1. Create a zone-scoped Cloudflare API token with these permissions:
-   - **Cache Purge** — Edit
-   - **Cache Rules** — Edit
-   - **Analytics** — Read
-   - **Zone** — Read
+   - **Cache Purge**: Edit
+   - **Cache Rules**: Edit
+   - **Analytics**: Read
+   - **Zone**: Read
 2. In admin, open **Plugins → Cloudflare**, paste the token, and Save.
 3. Click **Discover zone** to fill the Zone ID from your site domain (or paste it),
    then **Test connection**.
