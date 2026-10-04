@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.0
+
+### New
+
+- Purges the whole zone when every page changes (theme, settings, plugins, maintenance), on Shopclass 6.4.2+.
+
 ## 1.1.6
 
 ### Fixed

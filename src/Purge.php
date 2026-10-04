@@ -27,6 +27,8 @@ if (!defined('ABS_PATH')) {
  */
 class Purge
 {
+    public const PURGE_ALL_COOLDOWN = 60;
+
     /** @param array|int $itemOrId full item array (create/edit/delete) or an id (state changes). */
     public static function onItem($itemOrId): void
     {
@@ -54,6 +56,25 @@ class Purge
             return;
         }
         self::deliver(array_merge(array(osc_base_url()), self::pageUrls($pageId)));
+    }
+
+    /** Every page changed (theme, settings, plugins...): purge the whole zone, or queue it. */
+    public static function onPurgeAll(array $reasons = []): void
+    {
+        if (!self::active()) {
+            return;
+        }
+        $last = (int)osc_get_preference('last_purge_all', Plugin::PREF_SECTION);
+        if (time() - $last < self::PURGE_ALL_COOLDOWN) {
+            Queue::add(array(Queue::ALL));
+            return;
+        }
+        $client = Client::fromSettings();
+        if ($client === null || $client->zoneId() === '' || !$client->purgeEverything()['ok']) {
+            Queue::add(array(Queue::ALL));
+            return;
+        }
+        osc_set_preference('last_purge_all', (string)time(), Plugin::PREF_SECTION, 'INTEGER');
     }
 
     // ── url derivation ─────────────────────────────────────────────────────────

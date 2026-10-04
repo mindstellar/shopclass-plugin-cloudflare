@@ -19,6 +19,13 @@ blip, an expired token) is queued and retried every hour for 48 hours. After tha
 it is dropped, and the settings page warns you how many purges were given up on.
 Purge everything clears the warning.
 
+**Full purge.** When Shopclass 6.4.2+ says every page changed (theme switch, site
+settings, permalinks, maintenance mode, plugin changes: the `page_cache_purge` hook), the
+plugin purges everything in the zone. Cloudflare does not cache HTML by default, only
+static assets; this matters when a rule makes Cloudflare cache pages. A full purge also
+drops cached assets, so expect a short rise in origin traffic. At most one per minute; a
+skipped or failed one is retried hourly.
+
 Search and filter result URLs are **not** purged. They are unbounded and can't be
 enumerated, so they rely on whatever TTL your cache rules give them.
 
@@ -70,7 +77,8 @@ To clear the whole cache after a deploy that changes site-wide markup:
 php oc-content/plugins/cloudflare/bin/purge.php
 ```
 
-It reads the same saved credentials and purges everything.
+It reads the same saved credentials and purges everything. This also drops cached assets,
+so expect a short rise in origin traffic.
 
 ## Data and privacy
 

@@ -3,7 +3,7 @@
 Plugin Name: Cloudflare
 Plugin URI: https://github.com/mindstellar/shopclass-plugin-cloudflare
 Description: Purge Cloudflare's cache when listings change, install the recommended cache rules, and view cache analytics — all from the admin.
-Version: 1.1.6
+Version: 1.2.0
 Author: Navjot Tomer (Mindstellar)
 Author URI: https://mindstellar.com
 Short Name: cloudflare
@@ -95,6 +95,16 @@ osc_add_hook('after_delete_category', 'cf_purge_category');
 osc_add_hook('edit_page', 'cf_purge_page');
 osc_add_hook('after_delete_page', 'cf_purge_page');
 
+// Every page changed (theme, settings, plugins...): purge the whole zone.
+// Older cores have no page_cache_purge hook, so listen to the main triggers instead.
+if (function_exists('osc_purge_page_cache')) {
+    osc_add_hook('page_cache_purge', 'cf_purge_all');
+} else {
+    foreach (array('theme_activate', 'after_plugin_activate', 'after_plugin_deactivate', 'admin_form_after_save') as $cf_hook) {
+        osc_add_hook($cf_hook, 'cf_purge_all');
+    }
+}
+
 // Retry anything that failed its immediate purge.
 osc_add_hook('cron_hourly', 'cf_flush_queue');
 
@@ -128,6 +138,11 @@ function cf_purge_category($categoryId)
 function cf_purge_page($pageId)
 {
     Purge::onPage((int)$pageId);
+}
+
+function cf_purge_all($reasons = array())
+{
+    Purge::onPurgeAll(is_array($reasons) ? $reasons : array());
 }
 
 function cf_flush_queue()

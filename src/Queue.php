@@ -20,6 +20,8 @@ class Queue
 {
     public const MAX_AGE_HOURS = 48;
     public const FLUSH_LIMIT  = 200;
+    /** Queue row meaning "purge the whole zone". */
+    public const ALL = '*';
 
     public static function table(): string
     {
@@ -85,7 +87,18 @@ class Queue
             return;
         }
 
-        $rows = osc_db_select('SELECT pk_i_id, s_url FROM ' . self::table() . ' ORDER BY pk_i_id ASC LIMIT ' . (int)self::FLUSH_LIMIT);
+        $all = osc_db_select('SELECT pk_i_id FROM ' . self::table() . ' WHERE s_url = ?', array(self::ALL));
+        if ($all) {
+            if ($client->purgeEverything()['ok']) {
+                osc_db_execute('DELETE FROM ' . self::table());
+                Plugin::clearDropped();
+                osc_set_preference('last_purge_all', (string)time(), Plugin::PREF_SECTION, 'INTEGER');
+                return;
+            }
+            self::bumpAttempts(array_map(static fn($r) => (int)$r['pk_i_id'], $all));
+        }
+
+        $rows = osc_db_select('SELECT pk_i_id, s_url FROM ' . self::table() . ' WHERE s_url <> ? ORDER BY pk_i_id ASC LIMIT ' . (int)self::FLUSH_LIMIT, array(self::ALL));
         if (!$rows) {
             return;
         }
