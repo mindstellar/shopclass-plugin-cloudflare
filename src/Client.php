@@ -32,6 +32,9 @@ class Client
     private string $zoneId;
     private ?HttpClientInterface $http;
 
+    /** @var \Closure|null Test seam: replaces the client built by fromSettings(). */
+    private static ?\Closure $factory = null;
+
     public function __construct(string $token, string $zoneId = '', ?HttpClientInterface $http = null)
     {
         $this->token  = $token;
@@ -42,11 +45,19 @@ class Client
     /** Build from stored settings, or null when no token is configured. */
     public static function fromSettings(): ?self
     {
+        if (self::$factory !== null) {
+            return (self::$factory)();
+        }
         $token = Plugin::token();
         if ($token === '') {
             return null;
         }
         return new self($token, Plugin::zoneId());
+    }
+
+    public static function useFactory(?\Closure $factory): void
+    {
+        self::$factory = $factory;
     }
 
     public function zoneId(): string
