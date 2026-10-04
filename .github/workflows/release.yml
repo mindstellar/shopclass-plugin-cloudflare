@@ -33,6 +33,9 @@ jobs:
       - name: Check every PHP file parses
         run: find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
 
+      - name: Tests
+        run: php tests/QueueTest.php
+
       - name: Build the zip
         id: build
         run: |
