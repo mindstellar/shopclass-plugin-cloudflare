@@ -13,12 +13,12 @@ if (!defined('ABS_PATH')) {
 
 /**
  * A durable retry queue for URLs whose immediate purge failed (a Cloudflare
- * blip, an expired token). Drained on cron_hourly. Entries that keep failing are
- * dropped after MAX_ATTEMPTS so the table can't grow without bound.
+ * blip, an expired token). Drained on cron_hourly. An entry that is still failing
+ * after MAX_AGE_HOURS is dropped and counted, so the admin can see it.
  */
 class Queue
 {
-    public const MAX_ATTEMPTS = 5;
+    public const MAX_AGE_HOURS = 48;
     public const FLUSH_LIMIT  = 200;
 
     public static function table(): string
@@ -58,9 +58,28 @@ class Queue
         }
     }
 
-    /** Retry queued URLs; drop the ones that succeed and the ones that give up. */
+    /** Oldest queue time still worth retrying, as a DB datetime. */
+    public static function cutoff(int $now): string
+    {
+        return date('Y-m-d H:i:s', $now - self::MAX_AGE_HOURS * 3600);
+    }
+
+    /** Drop entries older than MAX_AGE_HOURS and tell the admin how many. */
+    private static function expire(): void
+    {
+        $rows = osc_db_select('SELECT COUNT(*) AS n FROM ' . self::table() . ' WHERE dt_date < ?', array(self::cutoff(time())));
+        $n    = (int)($rows[0]['n'] ?? 0);
+        if ($n > 0) {
+            osc_db_execute('DELETE FROM ' . self::table() . ' WHERE dt_date < ?', array(self::cutoff(time())));
+            Plugin::recordDropped($n);
+        }
+    }
+
+    /** Retry queued URLs; drop the ones that succeed, and the ones too old to keep. */
     public static function flush(): void
     {
+        self::expire();
+
         $client = Client::fromSettings();
         if ($client === null || $client->zoneId() === '') {
             return;
@@ -92,7 +111,6 @@ class Queue
         self::deleteIds($done);
         if ($fail !== array()) {
             self::bumpAttempts($fail);
-            osc_db_execute('DELETE FROM ' . self::table() . ' WHERE i_attempts >= ?', array(self::MAX_ATTEMPTS));
         }
     }
 
@@ -111,7 +129,7 @@ class Queue
             return;
         }
         [$in, $params] = self::inClause($ids);
-        osc_db_execute('UPDATE ' . self::table() . ' SET i_attempts = i_attempts + 1 WHERE pk_i_id IN (' . $in . ')', $params);
+        osc_db_execute('UPDATE ' . self::table() . ' SET i_attempts = LEAST(i_attempts + 1, 255) WHERE pk_i_id IN (' . $in . ')', $params);
     }
 
     /** @return array{0:string,1:int[]} placeholder string + bound int ids */

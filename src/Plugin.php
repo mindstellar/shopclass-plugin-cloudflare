@@ -71,6 +71,31 @@ class Plugin
         return trim((string)osc_get_preference('zone_id', self::PREF_SECTION));
     }
 
+    /** Count the purges given up on, so the settings page can say so. */
+    public static function recordDropped(int $n): void
+    {
+        $total = self::droppedCount() + $n;
+        osc_set_preference('dropped_count', (string)$total, self::PREF_SECTION, 'INTEGER');
+        osc_set_preference('dropped_at', date('Y-m-d H:i'), self::PREF_SECTION, 'STRING');
+        error_log(sprintf('cloudflare: gave up on %d cache purge(s) that kept failing', $n));
+    }
+
+    public static function droppedCount(): int
+    {
+        return (int)osc_get_preference('dropped_count', self::PREF_SECTION);
+    }
+
+    public static function droppedAt(): string
+    {
+        return (string)osc_get_preference('dropped_at', self::PREF_SECTION);
+    }
+
+    public static function clearDropped(): void
+    {
+        osc_set_preference('dropped_count', '0', self::PREF_SECTION, 'INTEGER');
+        osc_set_preference('dropped_at', '', self::PREF_SECTION, 'STRING');
+    }
+
     public static function purgeEnabled(): bool
     {
         return (int)osc_get_preference('purge_enabled', self::PREF_SECTION) === 1;
@@ -267,6 +292,7 @@ class Plugin
         }
         $result = $client->purgeEverything();
         if (!empty($result['ok'])) {
+            self::clearDropped();
             osc_add_flash_ok_message(__('Purged the entire Cloudflare cache.', 'cloudflare'), 'admin');
         } else {
             osc_add_flash_error_message(sprintf(__('Purge failed: %s', 'cloudflare'), osc_esc_html($result['error'] ?? '')), 'admin');

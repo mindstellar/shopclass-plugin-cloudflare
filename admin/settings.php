@@ -136,6 +136,16 @@ $e       = 'osc_esc_html';
     </div>
   </div>
 
+  <?php if (Plugin::droppedCount() > 0) { ?>
+    <div class="alert alert-warning mb-3">
+      <?php echo $e(sprintf(
+          __('%1$d cache purge(s) kept failing and were given up on (last: %2$s). Some pages may be stale at Cloudflare. Check the connection, then purge everything to clear this notice.', 'cloudflare'),
+          Plugin::droppedCount(),
+          Plugin::droppedAt()
+      )); ?>
+    </div>
+  <?php } ?>
+
   <details class="card cf-setup mb-3"<?php echo $configured ? '' : ' open'; ?>>
     <summary>
       <span class="cf-i"><?php echo cf_icon('info'); ?></span>

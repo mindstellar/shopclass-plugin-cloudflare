@@ -9,14 +9,15 @@ the recommended cache rules, and view cache analytics, all from the admin.
 
 **Automatic cache purge.** When a listing is created, edited, deleted, or changes
 state (enabled/disabled, activated, made premium, expiry changed), and when a
-category or static page changes, the plugin purges the affected URLs at Cloudflare:
+category (added, edited, deleted) or static page changes, the plugin purges the affected URLs at Cloudflare:
 the item's own page (per enabled locale), the home page, the item's category
 listing, the seller's public profile, and the sitemap index. All URLs are derived
 from core helpers. Nothing about your site's structure is hardcoded.
 
-Purges are immediate and best-effort; anything that fails (a Cloudflare blip, an
-expired token) is queued and retried on the hourly cron, so a purge is never lost
-and a listing save is never blocked.
+Purges are immediate and best-effort and never block a listing save. Anything that fails (a Cloudflare
+blip, an expired token) is queued and retried every hour for 48 hours. After that
+it is dropped, and the settings page warns you how many purges were given up on.
+Purge everything clears the warning.
 
 Search and filter result URLs are **not** purged. They are unbounded and can't be
 enumerated, so they rely on whatever TTL your cache rules give them.

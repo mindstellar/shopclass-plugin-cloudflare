@@ -3,7 +3,7 @@
 Plugin Name: Cloudflare
 Plugin URI: https://github.com/mindstellar/shopclass-plugin-cloudflare
 Description: Purge Cloudflare's cache when listings change, install the recommended cache rules, and view cache analytics — all from the admin.
-Version: 1.1.5
+Version: 1.1.6
 Author: Navjot Tomer (Mindstellar)
 Author URI: https://mindstellar.com
 Short Name: cloudflare
@@ -88,9 +88,9 @@ foreach (array(
     osc_add_hook($cf_hook, 'cf_purge_item_id');
 }
 
-// Category / static page changes (core fires no edit_category/add_page here, so
-// we purge on the add/edit/delete events that do exist).
+// Category / static page changes.
 osc_add_hook('add_category', 'cf_purge_category');
+osc_add_hook('edited_category', 'cf_purge_category');
 osc_add_hook('after_delete_category', 'cf_purge_category');
 osc_add_hook('edit_page', 'cf_purge_page');
 osc_add_hook('after_delete_page', 'cf_purge_page');

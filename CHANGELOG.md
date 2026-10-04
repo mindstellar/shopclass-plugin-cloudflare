@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.6
+
+### Fixed
+
+- Category edits now purge the category pages.
+- A purge that keeps failing is retried hourly for 48 hours, then dropped with a warning on the settings page.
+
 ## 1.1.5
 
 ### Changed
