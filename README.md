@@ -1,91 +1,55 @@
 # Cloudflare
 
-Connect a ShopClass site to Cloudflare: purge changed pages automatically, install
-the recommended cache rules, and view cache analytics, all from the admin.
+Connects a Shopclass site to Cloudflare. It purges changed pages, installs cache rules and shows cache analytics from the admin.
 
-![The Cloudflare plugin settings page in the ShopClass admin](assets/screenshot-1.png)
-
-## What it does
-
-**Automatic cache purge.** When a listing is created, edited, deleted, or changes
-state (enabled/disabled, activated, made premium, expiry changed), and when a
-category (added, edited, deleted) or static page changes, the plugin purges the affected URLs at Cloudflare:
-the item's own page (per enabled locale), the home page, the item's category
-listing, the seller's public profile, and the sitemap index. All URLs are derived
-from core helpers. Nothing about your site's structure is hardcoded.
-
-Purges are immediate and best-effort and never block a listing save. Anything that fails (a Cloudflare
-blip, an expired token) is queued and retried every hour for 48 hours. After that
-it is dropped, and the settings page warns you how many purges were given up on.
-Purge everything clears the warning.
-
-**Full purge.** When Shopclass 6.4.2+ says every page changed (theme switch, site
-settings, permalinks, maintenance mode, plugin changes: the `page_cache_purge` hook), the
-plugin purges everything in the zone. Cloudflare does not cache HTML by default, only
-static assets; this matters when a rule makes Cloudflare cache pages. A full purge also
-drops cached assets, so expect a short rise in origin traffic. At most one per minute; a
-skipped or failed one is retried hourly.
-
-Search and filter result URLs are **not** purged. They are unbounded and can't be
-enumerated, so they rely on whatever TTL your cache rules give them.
-
-**Cache rules.** One click installs three rules in your zone's cache phase:
-
-1. cache public pages, respecting the origin's `Cache-Control`;
-2. bypass the admin (`/oc-admin/*`);
-3. bypass any request carrying a login/personalization cookie.
-
-The cookie list comes from core, so it stays correct as ShopClass updates. The plugin touches only the rules it created (your other
-rules are preserved), and it is safe by construction: a page the app marks
-`private, no-store` is never cached.
-
-**Cache lifetime.** Optionally set how long Cloudflare keeps each kind of page: listings,
-static pages, and home, search and category pages. Off by default. A longer time is safe
-because a change still purges the page.
-
-**Analytics.** A read-only widget shows the last 24h cache hit ratio, requests, and
-bandwidth served from cache.
+![The Cloudflare plugin settings page in the Shopclass admin](assets/screenshot-1.png)
 
 ## Requirements
 
-- ShopClass 6.2.0 or later, tested up to 6.4.
-- PHP 8.0+.
-- A Cloudflare account with the site as a zone.
+- Shopclass 6.2.0 or later, tested up to 6.4
+- PHP 8.0 or later
+- A Cloudflare account with your site as a zone, and an API token
 
 ## Install
 
-From the admin: **Plugins → Manage plugins → Browse**, find *Cloudflare*, then **Install**.
-Or: `php oc-cli.php market:install cloudflare`.
+1. Open Plugins → Browse (or upload the zip from the GitHub release).
+2. Install.
+3. Activate.
 
-## Setup
+Or run `php oc-cli.php market:install cloudflare`.
 
-1. Create a zone-scoped Cloudflare API token with these permissions:
-   - **Cache Purge**: Edit
-   - **Cache Rules**: Edit
-   - **Analytics**: Read
-   - **Zone**: Read
-2. In admin, open **Plugins → Cloudflare**, paste the token, and Save.
-3. Click **Discover zone** to fill the Zone ID from your site domain (or paste it),
-   then **Test connection**.
-4. Click **Install / update cache rules**.
+## Set up
 
-## Purge on deploy
+1. In Cloudflare, create a zone-scoped API token with these permissions:
+   - Cache Purge: Edit
+   - Cache Rules: Edit
+   - Analytics: Read
+   - Zone: Read
+2. Open Plugins → Cloudflare. Paste the token into **API token** and click **Save changes**.
+3. Click **Discover** to fill **Zone ID** from your site domain, or paste it. Click **Save changes**, then **Test connection**. It names any missing permission.
+4. Click **Install / update rules**.
+5. In Cloudflare, keep Development Mode off. It bypasses the cache.
 
-To clear the whole cache after a deploy that changes site-wide markup:
+## How it works
 
-```sh
-php oc-content/plugins/cloudflare/bin/purge.php
-```
+- **Automatic purge.** When a listing is created, edited, deleted or changes state (enabled, disabled, activated, deactivated, premium on or off, expiry changed), or a category or static page changes, the plugin purges the affected URLs. These are the item page (per enabled locale), the home page, the item's category listing, the seller's public profile and the sitemap index. All URLs come from core helpers.
+- Purges never block a listing save. A failed purge is retried hourly for 48 hours, then dropped. The settings page shows how many were given up on. **Purge everything** clears that notice.
+- **Full purge.** When core signals that every page changed (theme switch, site settings, permalinks, maintenance mode, plugin changes), the plugin purges the whole zone. At most one per minute. A skipped or failed one is retried hourly. A full purge also drops cached assets, so expect a short rise in origin traffic.
+- **Cache rules.** One click installs three rules in the zone's cache phase: cache public pages (respecting the origin's `Cache-Control`), bypass `/oc-admin/*`, and bypass requests with a login or personalization cookie. The cookie list comes from core. Your other rules are kept. A page marked `private, no-store` is never cached.
+- **Cache lifetime.** Tick **Set Cloudflare edge cache lifetime per page type** to set seconds for **Item pages** (default 300), **Static pages** (600) and **Listings** (home, search, category; 30). Off by default. The maximum is 86400. A longer time is safe because a change still purges the page.
+- **Cache analytics.** A read-only panel shows the last 24 hours: cache hit ratio, requests and bandwidth from cache.
 
-It reads the same saved credentials and purges everything. This also drops cached assets,
-so expect a short rise in origin traffic.
+## Notes / limits
 
-## Data and privacy
+- Search and filter result URLs are not purged. They cannot be listed, so they follow the TTL in your cache rules.
+- Cloudflare does not cache HTML by default, only static assets. Full purges matter when a rule makes it cache pages.
+- Purge on deploy: `php oc-content/plugins/cloudflare/bin/purge.php` purges everything with the saved credentials.
+- The plugin stores only the API token and Zone ID in the site's preferences. It talks only to the Cloudflare API over HTTPS and sends no telemetry.
 
-The plugin stores only your API token and Zone ID (in the site's preferences) and
-talks solely to the Cloudflare API over HTTPS. It sends no analytics or telemetry
-anywhere else.
+## Support
 
-## Licence
+https://github.com/mindstellar/shopclass-plugin-cloudflare/issues
+
+## License
 
 GPL-3.0-or-later. See [LICENSE](LICENSE).
