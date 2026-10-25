@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+### Changed
+- Docs: README rewritten in plain language.
+
 ## 1.2.0
 
 ### New
