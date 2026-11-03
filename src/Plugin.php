@@ -136,10 +136,10 @@ class Plugin
         if (!self::ttlEnabled()) {
             return $default;
         }
-        if (function_exists('osc_is_item_page') && osc_is_item_page()) {
+        if (osc_is_ad_page()) {
             return self::ttlItem();
         }
-        if (function_exists('osc_is_static_page') && osc_is_static_page()) {
+        if (osc_is_static_page()) {
             return self::ttlStatic();
         }
         // home, search, category, and any other public read page

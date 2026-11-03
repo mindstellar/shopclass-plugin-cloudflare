@@ -6,9 +6,6 @@ ini_set('error_log', '/dev/null');
 
 // ── Child mode: load index.php with stubbed core and print the hooks it registers.
 if (($argv[1] ?? '') === 'hooks') {
-    if ($argv[2] === 'on') {
-        function osc_purge_page_cache() {}
-    }
     $hooks = array();
     function osc_register_plugin() {}
     function osc_plugin_path($f) { return 'cloudflare/index.php'; }
@@ -24,6 +21,9 @@ $GLOBALS['prefs'] = array();
 $GLOBALS['rows']  = array();   // id => [id, url, attempts, date]
 $GLOBALS['next']  = 1;
 
+$GLOBALS['page'] = '';
+function osc_is_ad_page() { return $GLOBALS['page'] === 'item'; }
+function osc_is_static_page() { return $GLOBALS['page'] === 'page'; }
 function osc_get_preference($k, $s = '') { return $GLOBALS['prefs'][$s][$k] ?? ''; }
 function osc_set_preference($k, $v, $s = '', $t = '') { $GLOBALS['prefs'][$s][$k] = (string)$v; return true; }
 
@@ -239,15 +239,18 @@ $hooksFor = static function (string $mode): array {
     $out = shell_exec(escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(__FILE__) . ' hooks ' . $mode);
     return json_decode((string)$out, true) ?: array();
 };
-$on  = $hooksFor('on');
-$off = $hooksFor('off');
-$check('shim: core has osc_purge_page_cache, so only page_cache_purge is hooked',
+$on = $hooksFor('on');
+$check('shim: only page_cache_purge purges the whole zone',
     in_array('page_cache_purge=>cf_purge_all', $on, true)
     && !array_filter($on, static fn($h) => in_array($h, array('theme_activate=>cf_purge_all', 'after_plugin_activate=>cf_purge_all', 'after_plugin_deactivate=>cf_purge_all', 'admin_form_after_save=>cf_purge_all'), true)),
     json_encode($on));
-$check('shim: old core hooks the four triggers and not page_cache_purge',
-    !in_array('page_cache_purge=>cf_purge_all', $off, true)
-    && count(array_intersect($off, array('theme_activate=>cf_purge_all', 'after_plugin_activate=>cf_purge_all', 'after_plugin_deactivate=>cf_purge_all', 'admin_form_after_save=>cf_purge_all'))) === 4,
-    json_encode($off));
+
+// ── edge TTL per page type
+$GLOBALS['prefs']['cloudflare']['ttl_enabled'] = '1';
+$ttls = array();
+foreach (array('item', 'page', 'search') as $GLOBALS['page']) {
+    $ttls[] = Plugin::pageTtl(5);
+}
+$check('ttl: listing, static and other pages each get their own time', $ttls === array(Plugin::ttlItem(), Plugin::ttlStatic(), Plugin::ttlListing()) && count(array_unique($ttls)) === 3, json_encode($ttls));
 
 exit($fail ? 1 : 0);

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.1
+
+### Fixed
+- Listing pages get the listing edge cache time; they used the general time before.
+
+### Changed
+- The fallback for cores older than 7.0 is removed.
+
 ## 1.3.0
 
 ### Changed
