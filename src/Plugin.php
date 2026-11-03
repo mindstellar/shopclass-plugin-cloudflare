@@ -56,7 +56,7 @@ class Plugin
 
         // The whole section, not a key list — a setting dropped by a later
         // version would otherwise be orphaned forever.
-        \Preference::newInstance()->delete(array('s_section' => self::PREF_SECTION));
+        \Preference::getInstance()->delete(array('s_section' => self::PREF_SECTION));
         osc_reset_preferences();
     }
 

@@ -6,7 +6,7 @@ Connects a Shopclass site to Cloudflare. It purges changed pages, installs cache
 
 ## Requirements
 
-- Shopclass 6.2.0 or later, tested up to 6.4
+- Shopclass 7.0.0 or later
 - PHP 8.0 or later
 - A Cloudflare account with your site as a zone, and an API token
 

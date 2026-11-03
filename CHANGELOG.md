@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.0
+
+### Changed
+- Needs Shopclass 7.0.0 or newer; uses `getInstance()` in place of the deprecated `newInstance()`.
+
 ## 1.2.1
 
 ### Changed

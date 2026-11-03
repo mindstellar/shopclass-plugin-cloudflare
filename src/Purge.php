@@ -121,7 +121,7 @@ class Purge
     /** @return string[] */
     private static function pageUrls(int $id): array
     {
-        $page = Page::newInstance()->findByPrimaryKey($id);
+        $page = Page::getInstance()->findByPrimaryKey($id);
         if (!$page || empty($page['pk_i_id'])) {
             return array();
         }
@@ -160,7 +160,7 @@ class Purge
         if ($id <= 0) {
             return null;
         }
-        $item = Item::newInstance()->findByPrimaryKey($id);
+        $item = Item::getInstance()->findByPrimaryKey($id);
         return (is_array($item) && $item) ? $item : null;
     }
 
